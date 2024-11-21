@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Autos de Carrera</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #222;
+        }
+        #gameOverText, #startText {
+            color: white;
+            font-size: 30px;
+            text-align: center;
+            font-family: "Arial", sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="startText">¡Presiona Enter para empezar!</div>
+    <div id="gameOverText"></div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        // Variables del juego
+        let carWidth = 40;
+        let carHeight = 80;
+        let carX = canvas.width / 2 - carWidth / 2;
+        let carY = canvas.height - carHeight - 10;
+        let carSpeed = 5;
+        let leftPressed = false;
+        let rightPressed = false;
+
+        let obstacles = [];
+        let powers = [];
+        let obstacleSpeed = 3;
+        let gameOver = false;
+        let score = 0;
+        let lives = 3;
+        let shieldActive = false;
+        let shieldDuration = 0; // Duración del poder en segundos
+        let gameStarted = false;
+
+        // Control de teclas
+        document.addEventListener("keydown", keyDownHandler);
+        document.addEventListener("keyup", keyUpHandler);
+
+        function keyDownHandler(e) {
+            if (e.key == "ArrowLeft") {
+                leftPressed = true;
+            } else if (e.key == "ArrowRight") {
+                rightPressed = true;
+            } else if (e.key == "Enter") {
+                if (gameOver || !gameStarted) {
+                    restartGame();
+                } else {
+                    gameStarted = true;
+                    document.getElementById('startText').style.display = 'none'; // Ocultar mensaje de inicio
+                }
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key == "ArrowLeft") {
+                leftPressed = false;
+            } else if (e.key == "ArrowRight") {
+                rightPressed = false;
+            }
+        }
+
+        // Dibuja el coche
+        function drawCar() {
+            ctx.fillStyle = "blue";
+            ctx.fillRect(carX, carY, carWidth, carHeight);
+        }
+
+        // Dibuja los obstáculos
+        function drawObstacles() {
+            ctx.fillStyle = "red";
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        // Dibuja los poderes
+        function drawPowers() {
+            ctx.fillStyle = "yellow";
+            powers.forEach(power => {
+                ctx.beginPath();
+                ctx.arc(power.x + power.width / 2, power.y + power.height / 2, 15, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Mueve los obstáculos
+        function moveObstacles() {
+            obstacles.forEach(obstacle => {
+                obstacle.y += obstacleSpeed;
+            });
+        }
+
+        // Mueve los poderes
+        function movePowers() {
+            powers.forEach(power => {
+                power.y += obstacleSpeed;
+            });
+        }
+
+        // Detecta colisiones con obstáculos
+        function detectCollisions() {
+            obstacles.forEach(obstacle => {
+                if (
+                    carX < obstacle.x + obstacle.width &&
+                    carX + carWidth > obstacle.x &&
+                    carY < obstacle.y + obstacle.height &&
+                    carY + carHeight > obstacle.y
+                ) {
+                    if (!shieldActive) {
+                        lives--;
+                    }
+                    obstacles = obstacles.filter(o => o !== obstacle);
+                }
+            });
+        }
+
+        // Detecta si el jugador recoge un poder
+        function detectPowerCollection() {
+            powers.forEach(power => {
+                if (
+                    carX < power.x + power.width &&
+                    carX + carWidth > power.x &&
+                    carY < power.y + power.height &&
+                    carY + carHeight > power.y
+                ) {
+                    powers = powers.filter(p => p !== power);
+                    shieldActive = true;
+                    shieldDuration = 5000; // Duración del poder (5 segundos)
+                    setTimeout(() => shieldActive = false, shieldDuration); // Desactivar el poder después de 5 segundos
+                }
+            });
+        }
+
+        // Genera obstáculos aleatorios
+        function generateObstacles() {
+            if (Math.random() < 0.02) {
+                let width = Math.random() * (canvas.width / 3) + 40;
+                let x = Math.random() * (canvas.width - width);
+                obstacles.push({ x: x, y: -50, width: width, height: 30 });
+            }
+        }
+
+        // Genera poderes aleatorios
+        function generatePowers() {
+            if (Math.random() < 0.01) {
+                let x = Math.random() * (canvas.width - 30);
+                powers.push({ x: x, y: -50, width: 30, height: 30 });
+            }
+        }
+
+        // Actualiza la posición del coche
+        function updateCarPosition() {
+            if (leftPressed && carX > 0) {
+                carX -= carSpeed;
+            } else if (rightPressed && carX + carWidth < canvas.width) {
+                carX += carSpeed;
+            }
+        }
+
+        // Reinicia el juego
+        function restartGame() {
+            carX = canvas.width / 2 - carWidth / 2;
+            carY = canvas.height - carHeight - 10;
+            obstacles = [];
+            powers = [];
+            obstacleSpeed = 3;
+            lives = 3;
+            score = 0;
+            shieldActive = false;
+            gameOver = false;
+            gameStarted = true;
+            shieldDuration = 0;
+            document.getElementById('startText').style.display = 'none'; // Ocultar mensaje de inicio
+            draw(); // Reiniciar la animación
+        }
+
+        // Dibuja el puntaje y las vidas
+        function drawScoreAndLives() {
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText("Puntuación: " + score, 10, 30);
+            ctx.fillText("Vidas: " + lives, canvas.width - 100, 30);
+
+            // Mostrar el estado del escudo
+            if (shieldActive) {
+                ctx.fillStyle = "green";
+                ctx.fillText("¡Escudo activado!", canvas.width / 2 - 60, 30);
+            }
+        }
+
+        // Dibuja el estado del juego
+        function drawGameOver() {
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("Game Over", canvas.width / 2 - 80, canvas.height / 2);
+            ctx.font = "20px Arial";
+            ctx.fillText("Presiona Enter para reiniciar", canvas.width / 2 - 120, canvas.height / 2 + 40);
+        }
+
+        // Dibuja el juego
+        function draw() {
+            if (gameOver) {
+                drawGameOver();
+                return;
+            }
+
+            // Limpiar el canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar coche
+            drawCar();
+
+            // Dibujar obstáculos
+            drawObstacles();
+
+            // Dibujar poderes
+            drawPowers();
+
+            // Mover obstáculos y poderes
+            moveObstacles();
+            movePowers();
+
+            // Generar nuevos obstáculos y poderes
+            generateObstacles();
+            generatePowers();
+
+            // Actualizar posición del coche
+            updateCarPosition();
+
+            // Detectar colisiones con obstáculos
+            detectCollisions();
+
+            // Detectar si el jugador recoge un poder
+            detectPowerCollection();
+
+            // Dibujar el puntaje y las vidas
+            drawScoreAndLives();
+
+            // Aumentar la puntuación con el tiempo
+            score++;
+
+            // Aumentar la dificultad con el tiempo
+            if (score % 100 == 0) {
+                obstacleSpeed += 0.5;
+            }
+
+            // Fin del juego si se quedan sin vidas
+            if (lives <= 0) {
+                gameOver = true;
+            }
+
+            // Continuar con la animación
+            requestAnimationFrame(draw);
+        }
+
+        // Iniciar el juego
+        draw();
+    </script>
+</body>
+</html>
